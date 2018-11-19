@@ -47,6 +47,7 @@ def helpMessage() {
 /*
  * SET UP CONFIGURATION VARIABLES
  */
+ params.readsExtension = "fastq"
 
 // Show help emssage
 if (params.help){
@@ -104,19 +105,19 @@ if( workflow.profile == 'awsbatch') {
              .from(params.readPaths)
              .map { row -> [ row[0], [file(row[1][0])]] }
              .ifEmpty { exit 1, "params.readPaths was empty - no input files supplied" }
-             .into { read_files_fastqc; read_files_trimming }
+             .into { read_files_fastqc; read_files_real }
      } else {
          Channel
              .from(params.readPaths)
              .map { row -> [ row[0], [file(row[1][0]), file(row[1][1])]] }
              .ifEmpty { exit 1, "params.readPaths was empty - no input files supplied" }
-             .into { read_files_fastqc; read_files_trimming }
+             .into { read_files_fastqc; read_files_real }
      }
  } else {
      Channel
          .fromFilePairs( params.reads, size: params.singleEnd ? 1 : 2 )
          .ifEmpty { exit 1, "Cannot find any reads matching: ${params.reads}\nNB: Path needs to be enclosed in quotes!\nIf this is single-end data, please specify --singleEnd on the command line." }
-         .into { read_files_fastqc; read_files_trimming }
+         .into { read_files_fastqc; read_files_real }
  }
 
 
@@ -182,20 +183,20 @@ ${summary.collect { k,v -> "            <dt>$k</dt><dd><samp>${v ?: '<span style
 /*
  * Parse software version numbers
  */
-process get_software_versions {
-
-    output:
-    file 'software_versions_mqc.yaml' into software_versions_yaml
-
-    script:
-    """
-    echo $workflow.manifest.version > v_pipeline.txt
-    echo $workflow.nextflow.version > v_nextflow.txt
-    fastqc --version > v_fastqc.txt
-    multiqc --version > v_multiqc.txt
-    scrape_software_versions.py > software_versions_mqc.yaml
-    """
-}
+// process get_software_versions {
+//
+//     output:
+//     file 'software_versions_mqc.yaml' into software_versions_yaml
+//
+//     script:
+//     """
+//     echo $workflow.manifest.version > v_pipeline.txt
+//     echo $workflow.nextflow.version > v_nextflow.txt
+//     fastqc --version > v_fastqc.txt
+//     multiqc --version > v_multiqc.txt
+//     scrape_software_versions.py > software_versions_mqc.yaml
+//     """
+// }
 
 
 
@@ -222,49 +223,71 @@ process fastqc {
 
 
 /*
- * STEP 2 - MultiQC
+ * STEP 2 - REAL - align RNA data
  */
-process multiqc {
-    publishDir "${params.outdir}/MultiQC", mode: 'copy'
+process real {
+    tag "$name"
+    publishDir "${params.outdir}/real", mode: 'copy'
 
     input:
-    file multiqc_config
-    file ('fastqc/*') from fastqc_results.collect()
-    file ('software_versions/*') from software_versions_yaml
-    file workflow_summary from create_workflow_summary(summary)
+    set val(name), file(reads) from read_files_real
+    file fasta from fasta
 
     output:
-    file "*multiqc_report.html" into multiqc_report
-    file "*_data"
+    file "${name}.bam" into aligned_reads
 
     script:
-    rtitle = custom_runName ? "--title \"$custom_runName\"" : ''
-    rfilename = custom_runName ? "--filename " + custom_runName.replaceAll('\\W','_').replaceAll('_+','_') + "_multiqc_report" : ''
     """
-    multiqc -f $rtitle $rfilename --config $multiqc_config .
+    real -t $reads -p $fasta -o ${name}.bam
     """
 }
 
 
 
 /*
+ * STEP 2 - MultiQC
+ */
+// process multiqc {
+//     publishDir "${params.outdir}/MultiQC", mode: 'copy'
+//
+//     input:
+//     file multiqc_config
+//     file ('fastqc/*') from fastqc_results.collect()
+//     file ('software_versions/*') from software_versions_yaml
+//     file workflow_summary from create_workflow_summary(summary)
+//
+//     output:
+//     file "*multiqc_report.html" into multiqc_report
+//     file "*_data"
+//
+//     script:
+//     rtitle = custom_runName ? "--title \"$custom_runName\"" : ''
+//     rfilename = custom_runName ? "--filename " + custom_runName.replaceAll('\\W','_').replaceAll('_+','_') + "_multiqc_report" : ''
+//     """
+//     multiqc -f $rtitle $rfilename --config $multiqc_config .
+//     """
+// }
+
+
+
+/*
  * STEP 3 - Output Description HTML
  */
-process output_documentation {
-    tag "$prefix"
-    publishDir "${params.outdir}/Documentation", mode: 'copy'
-
-    input:
-    file output_docs
-
-    output:
-    file "results_description.html"
-
-    script:
-    """
-    markdown_to_html.r $output_docs results_description.html
-    """
-}
+// process output_documentation {
+//     tag "$prefix"
+//     publishDir "${params.outdir}/Documentation", mode: 'copy'
+//
+//     input:
+//     file output_docs
+//
+//     output:
+//     file "results_description.html"
+//
+//     script:
+//     """
+//     markdown_to_html.r $output_docs results_description.html
+//     """
+// }
 
 
 
