@@ -203,42 +203,69 @@ ${summary.collect { k,v -> "            <dt>$k</dt><dd><samp>${v ?: '<span style
 /*
  * STEP 1 - FastQC
  */
-process fastqc {
-    tag "$name"
-    publishDir "${params.outdir}/fastqc", mode: 'copy',
-        saveAs: {filename -> filename.indexOf(".zip") > 0 ? "zips/$filename" : "$filename"}
-
-    input:
-    set val(name), file(reads) from read_files_fastqc
-
-    output:
-    file "*_fastqc.{zip,html}" into fastqc_results
-
-    script:
-    """
-    fastqc -q $reads
-    """
-}
+// process fastqc {
+//     tag "$name"
+//     publishDir "${params.outdir}/fastqc", mode: 'copy',
+//         saveAs: {filename -> filename.indexOf(".zip") > 0 ? "zips/$filename" : "$filename"}
+//
+//     input:
+//     set val(name), file(reads) from read_files_fastqc
+//
+//     output:
+//     file "*_fastqc.{zip,html}" into fastqc_results
+//
+//     script:
+//     """
+//     fastqc -q $reads
+//     """
+// }
 
 
 
 /*
  * STEP 2 - REAL - align RNA data
  */
-process real {
-    tag "$name"
-    publishDir "${params.outdir}/real", mode: 'copy'
+// process real {
+//     tag "$name"
+//     publishDir "${params.outdir}/real", mode: 'copy'
+//
+//     input:
+//     set val(name), file(reads) from read_files_real
+//     file fasta from fasta
+//
+//     output:
+//     file "${name}.bam" into aligned_reads
+//
+//     script:
+//     """
+//     real -t $reads -p $fasta -o ${name}.bam
+//     """
+// }
+
+
+/*
+ * STEP 3 - isoSegmenter - segment genomes into isochores i.e. split the genome into chromosomes
+ */
+process isosegmenter {
+    tag "$fasta"
+    publishDir "${params.outdir}/isosegmenter", mode: 'copy',
+    saveAs: {filename ->
+        if (filename == "*.png") "img/$filename"
+        else if (filename == "*.png") filename
+        else null
+    }
+
+    container 'bunop/isosegmenter:latest'
 
     input:
-    set val(name), file(reads) from read_files_real
     file fasta from fasta
 
     output:
-    file "${name}.bam" into aligned_reads
+    file "*.csv" into isochores
 
     script:
     """
-    real -t $reads -p $fasta -o ${name}.bam
+    isoSegmenter.py --infile $fasta --outfile isochores.csv --graphfile isochores.png --draw_legend --verbose
     """
 }
 

@@ -3,5 +3,7 @@ work/
 data/
 results/
 .DS_Store
+testdata/
 tests/test_data
 tempfile*
+*isochores
