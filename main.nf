@@ -306,43 +306,43 @@ process split_chr {
 /*
  * STEP 4 - no_reads - compute reads for each isochore
  */
-// process no_reads {
-//     tag "$isochores"
-//     publishDir "${params.outdir}/no_reads", mode: 'copy'
-//
-//     input:
-//     file aligned_reads from aligned_reads
-//     file isochores from isochores
-//
-//     output:
-//     file "*.csv" into gene_exp
-//
-//     script:
-//     """
-//     noReads.py $isochores $aligned_reads
-//     """
-// }
+process no_reads {
+    tag "$isochores"
+    publishDir "${params.outdir}/no_reads", mode: 'copy'
+
+    input:
+    file aligned_reads from aligned_reads
+    file isochores from isochores
+
+    output:
+    file "*.csv" into gene_exp
+
+    script:
+    """
+    noReads.py $isochores $aligned_reads
+    """
+}
 
 
 
 /*
  * STEP 5 - no_reads - compute reads for each isochore
  */
-// process gene_exp {
-//     tag "$gene_exp"
-//     publishDir "${params.outdir}", mode: 'copy'
-//
-//     input:
-//     file gene_exp from gene_exp
-//
-//     output:
-//     file "*" into results
-//
-//     script:
-//     """
-//     geneExp.py $gene_exp $params.conditions >> output.txt
-//     """
-// }
+process gene_exp {
+    tag "$gene_exp"
+    publishDir "${params.outdir}", mode: 'copy'
+
+    input:
+    file gene_exp from gene_exp
+
+    output:
+    file "*" into results
+
+    script:
+    """
+    geneExp.py $gene_exp $params.conditions >> output.txt
+    """
+}
 
 
 
