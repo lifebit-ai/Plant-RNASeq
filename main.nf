@@ -24,6 +24,7 @@ def helpMessage() {
     Mandatory arguments:
       --reads                       Path to input data (must be surrounded with quotes)
       --genome                      Name of iGenomes reference
+      --conditions                  Integer to represent the number of conditions that the RNA data was grouped into intially eg 4
       -profile                      Configuration profile to use. Can use multiple (comma separated)
                                     Available: standard, conda, docker, singularity, awsbatch, test
 
@@ -47,12 +48,18 @@ def helpMessage() {
 /*
  * SET UP CONFIGURATION VARIABLES
  */
- params.readsExtension = "fastq"
- params.aligned_reads = false
+params.conditions = "4 6,9 10,13, 14,17 18,21"
+params.readsExtension = "fastq"
+params.aligned_reads = false
+params.no_reads_output = false
 
  aligned_reads = Channel
       .fromPath(params.aligned_reads)
       .ifEmpty { exit 1, "${params.aligned_reads} not found"}
+
+no_reads_output = Channel
+      .fromPath(params.no_reads_output)
+      .ifEmpty { exit 1, "${params.no_reads_output} not found"}
 
 // Show help emssage
 if (params.help){
@@ -71,10 +78,10 @@ multiqc_config = file(params.multiqc_config)
 output_docs = file("$baseDir/docs/output.md")
 
 // Validate inputs
-if ( params.fasta ){
-    fasta = file(params.fasta)
-    if( !fasta.exists() ) exit 1, "Fasta file not found: ${params.fasta}"
-}
+fasta = Channel
+      .fromPath(params.fasta)
+      .ifEmpty { exit 1, "${params.fasta} not found"}
+      .map { file -> tuple(file.baseName, file) }
 // AWSBatch sanity checking
 if(workflow.profile == 'awsbatch'){
     if (!params.awsqueue || !params.awsregion) exit 1, "Specify correct --awsqueue and --awsregion parameters on AWSBatch!"
@@ -248,51 +255,99 @@ ${summary.collect { k,v -> "            <dt>$k</dt><dd><samp>${v ?: '<span style
 // }
 
 
+
 /*
- * STEP 3 - isoSegmenter - segment genomes into isochores i.e. split the genome into chromosomes
+ * STEP 3.0 - split_chr - split the fasta genome into seperate files for each chromosome using pyfaidx
  */
-process isosegmenter {
-    tag "$fasta"
-    publishDir "${params.outdir}/isosegmenter", mode: 'copy',
-    saveAs: {filename ->
-        if (filename == "*.png") "img/$filename"
-        else if (filename == "*.png") filename
-        else null
-    }
+process split_chr {
+   tag "$fasta"
+   publishDir "${params.outdir}/split_chr", mode: 'copy'
 
-    container 'bunop/isosegmenter:latest'
+   input:
+   set fasta_prefix, file(fasta) from fasta
 
-    input:
-    file fasta from fasta
+   output:
+   // file "*.fasta" into fastas
+   file "*.fasta" into chrs
 
-    output:
-    file "*.csv" into isochores
-
-    script:
-    """
-    isoSegmenter.py --infile $fasta --outfile isochores.csv --graphfile isochores.png --draw_legend --verbose
-    """
+   script:
+   """
+   faidx -x $fasta
+   """
 }
+
+
+
+/*
+ * STEP 3.1 - isoSegmenter - segment genomes into isochores i.e. split the genome into chromosomes
+ */
+ process isosegmenter {
+
+     publishDir "${params.outdir}/isosegmenter", mode: 'copy'
+     // saveAs: {filename ->
+     //     if (filename == "*.png") "img/$filename"
+     //     else if (filename == "*.csv") filename
+     //     else null
+     // }
+
+     container 'bunop/isosegmenter:latest'
+
+     input:
+     file chrs from chrs
+
+     output:
+     file "*.csv" into isochores
+     file "*.png" into img
+
+     script:
+     """
+     for chr in ${chrs}; do
+     isoSegmenter.py --infile \$chr --window_size 100000 --outfile \${chr}.csv --graphfile \${chr}.png --draw_legend --verbose
+     done
+     """
+ }
 
 
 
 /*
  * STEP 4 - no_reads - compute reads for each isochore
  */
-process no_reads {
-    tag "$isochores"
-    publishDir "${params.outdir}/no_reads", mode: 'copy'
+// process no_reads {
+//     tag "$isochores"
+//     publishDir "${params.outdir}/no_reads", mode: 'copy'
+//
+//     input:
+//     file aligned_reads from aligned_reads
+//     file isochores from isochores
+//
+//     output:
+//     file "*.csv" into gene_exp
+//
+//     script:
+//     """
+//     noReads.py $isochores $aligned_reads
+//     """
+// }
+
+
+
+/*
+ * STEP 5 - no_reads - compute reads for each isochore
+ */
+process gene_exp {
+    tag "$gene_exp"
+    publishDir "${params.outdir}/gene_exp", mode: 'copy'
 
     input:
-    file aligned_reads from aligned_reads
-    file isochores from isochores
+    file gene_exp from no_reads_output
 
     output:
-    file "*.csv" into gene_exp
+    file "*" into gene_exp
 
     script:
     """
-    noReads.py $isochores $aligned_reads
+    touch output.csv
+    geneExp.py $gene_exp $params.conditions
     """
 }
 
