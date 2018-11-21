@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import sys
 import math
 
@@ -84,7 +85,7 @@ for j in range(0, 3*conditions + 1 ):
 	if c == 0: cond+= " avg"
 	if c == 1: cond+= " std dev"
 	if c == 2: cond+= " var"
-	if c == 2: 
+	if c == 2:
 		inp = inp + 1
 		c = 0
 	else: c = c + 1
@@ -134,4 +135,3 @@ for i in range( 0, len(iso_family) ):
 
 for i in range ( 1+len(iso_family) ):
 	print( final_table[i] )
-			

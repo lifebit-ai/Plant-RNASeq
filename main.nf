@@ -48,6 +48,11 @@ def helpMessage() {
  * SET UP CONFIGURATION VARIABLES
  */
  params.readsExtension = "fastq"
+ params.aligned_reads = false
+
+ aligned_reads = Channel
+      .fromPath(params.aligned_reads)
+      .ifEmpty { exit 1, "${params.aligned_reads} not found"}
 
 // Show help emssage
 if (params.help){
@@ -266,6 +271,28 @@ process isosegmenter {
     script:
     """
     isoSegmenter.py --infile $fasta --outfile isochores.csv --graphfile isochores.png --draw_legend --verbose
+    """
+}
+
+
+
+/*
+ * STEP 4 - no_reads - compute reads for each isochore
+ */
+process no_reads {
+    tag "$isochores"
+    publishDir "${params.outdir}/no_reads", mode: 'copy'
+
+    input:
+    file aligned_reads from aligned_reads
+    file isochores from isochores
+
+    output:
+    file "*.csv" into gene_exp
+
+    script:
+    """
+    noReads.py $isochores $aligned_reads
     """
 }
 
