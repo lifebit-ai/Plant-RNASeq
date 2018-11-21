@@ -48,7 +48,7 @@ def helpMessage() {
 /*
  * SET UP CONFIGURATION VARIABLES
  */
-params.conditions = "4 6,9 10,13, 14,17 18,21"
+params.conditions = false
 params.readsExtension = "fastq"
 params.aligned_reads = false
 params.no_reads_output = false
@@ -336,18 +336,17 @@ process split_chr {
  */
 process gene_exp {
     tag "$gene_exp"
-    publishDir "${params.outdir}/gene_exp", mode: 'copy'
+    publishDir "${params.outdir}", mode: 'copy'
 
     input:
     file gene_exp from no_reads_output
 
     output:
-    file "*" into gene_exp
+    file "*" into results
 
     script:
     """
-    touch output.csv
-    geneExp.py $gene_exp $params.conditions
+    geneExp.py $gene_exp $params.conditions >> output.txt
     """
 }
 
