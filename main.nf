@@ -48,18 +48,6 @@ def helpMessage() {
 /*
  * SET UP CONFIGURATION VARIABLES
  */
-params.conditions = false
-params.readsExtension = "fastq"
-params.aligned_reads = false
-params.no_reads_output = false
-
- aligned_reads = Channel
-      .fromPath(params.aligned_reads)
-      .ifEmpty { exit 1, "${params.aligned_reads} not found"}
-
-no_reads_output = Channel
-      .fromPath(params.no_reads_output)
-      .ifEmpty { exit 1, "${params.no_reads_output} not found"}
 
 // Show help emssage
 if (params.help){
@@ -69,7 +57,6 @@ if (params.help){
 
 // Configurable variables
 params.name = false
-params.fasta = params.genome ? params.genomes[ params.genome ].fasta ?: false : false
 params.multiqc_config = "$baseDir/conf/multiqc_config.yaml"
 params.email = false
 params.plaintext_email = false
@@ -81,7 +68,8 @@ output_docs = file("$baseDir/docs/output.md")
 fasta = Channel
       .fromPath(params.fasta)
       .ifEmpty { exit 1, "${params.fasta} not found"}
-      .map { file -> tuple(file.baseName, file) }
+      //.map { file -> tuple(file.baseName, file) }
+      .into { fasta_real; fasta_split_chr }
 // AWSBatch sanity checking
 if(workflow.profile == 'awsbatch'){
     if (!params.awsqueue || !params.awsregion) exit 1, "Specify correct --awsqueue and --awsregion parameters on AWSBatch!"
@@ -113,24 +101,29 @@ if( workflow.profile == 'awsbatch') {
  */
  if(params.readPaths){
      if(params.singleEnd){
+       print "\nsingle read paths\n"
          Channel
-             .from(params.readPaths)
-             .map { row -> [ row[0], [file(row[1][0])]] }
+             .fromPath(params.readPaths)
+             // .map { row -> [ row[0], [file(row[1][0])]] }
              .ifEmpty { exit 1, "params.readPaths was empty - no input files supplied" }
              .into { read_files_fastqc; read_files_real }
      } else {
+       print "\ndouble read paths\n"
          Channel
-             .from(params.readPaths)
-             .map { row -> [ row[0], [file(row[1][0]), file(row[1][1])]] }
+             .fromPath(params.readPaths)
+             // .map { row -> [ row[0], [file(row[1][0]), file(row[1][1])]] }
              .ifEmpty { exit 1, "params.readPaths was empty - no input files supplied" }
              .into { read_files_fastqc; read_files_real }
      }
  } else {
+   print "\ndouble reads\n"
      Channel
          .fromFilePairs( params.reads, size: params.singleEnd ? 1 : 2 )
          .ifEmpty { exit 1, "Cannot find any reads matching: ${params.reads}\nNB: Path needs to be enclosed in quotes!\nIf this is single-end data, please specify --singleEnd on the command line." }
          .into { read_files_fastqc; read_files_real }
  }
+
+ // readCh.subscribe { println "value: $it" }
 
 
 // Header log info
@@ -147,7 +140,8 @@ def summary = [:]
 summary['Pipeline Name']  = 'nf-core/plant-rnaseq'
 summary['Pipeline Version'] = workflow.manifest.version
 summary['Run Name']     = custom_runName ?: workflow.runName
-summary['Reads']        = params.reads
+if(params.readPaths) summary['Reads'] = params.readPaths
+if(params.reads) summary['Reads'] = params.reads
 summary['Fasta Ref']    = params.fasta
 summary['Data Type']    = params.singleEnd ? 'Single-End' : 'Paired-End'
 summary['Max Memory']   = params.max_memory
@@ -215,44 +209,44 @@ ${summary.collect { k,v -> "            <dt>$k</dt><dd><samp>${v ?: '<span style
 /*
  * STEP 1 - FastQC
  */
-// process fastqc {
-//     tag "$name"
-//     publishDir "${params.outdir}/fastqc", mode: 'copy',
-//         saveAs: {filename -> filename.indexOf(".zip") > 0 ? "zips/$filename" : "$filename"}
-//
-//     input:
-//     set val(name), file(reads) from read_files_fastqc
-//
-//     output:
-//     file "*_fastqc.{zip,html}" into fastqc_results
-//
-//     script:
-//     """
-//     fastqc -q $reads
-//     """
-// }
+process fastqc {
+    tag "$reads"
+    publishDir "${params.outdir}/fastqc", mode: 'copy',
+        saveAs: {filename -> filename.indexOf(".zip") > 0 ? "zips/$filename" : "$filename"}
+
+    input:
+    file(reads) from read_files_fastqc
+
+    output:
+    file "*_fastqc.{zip,html}" into fastqc_results
+
+    script:
+    """
+    fastqc -q $reads
+    """
+}
 
 
 
 /*
  * STEP 2 - REAL - align RNA data
  */
-// process real {
-//     tag "$name"
-//     publishDir "${params.outdir}/real", mode: 'copy'
-//
-//     input:
-//     set val(name), file(reads) from read_files_real
-//     file fasta from fasta
-//
-//     output:
-//     file "${name}.bam" into aligned_reads
-//
-//     script:
-//     """
-//     real -t $reads -p $fasta -o ${name}.bam
-//     """
-// }
+process real {
+    tag "$reads"
+    publishDir "${params.outdir}/real", mode: 'copy'
+
+    input:
+    file(reads) from read_files_real
+    file fasta from fasta_real
+
+    output:
+    file "${reads}.bam" into aligned_reads
+
+    script:
+    """
+    real -t $reads -p $fasta -o ${reads}.bam
+    """
+}
 
 
 
@@ -264,7 +258,7 @@ process split_chr {
    publishDir "${params.outdir}/split_chr", mode: 'copy'
 
    input:
-   set fasta_prefix, file(fasta) from fasta
+   file fasta from fasta_split_chr
 
    output:
    // file "*.fasta" into fastas
@@ -334,21 +328,21 @@ process split_chr {
 /*
  * STEP 5 - no_reads - compute reads for each isochore
  */
-process gene_exp {
-    tag "$gene_exp"
-    publishDir "${params.outdir}", mode: 'copy'
-
-    input:
-    file gene_exp from no_reads_output
-
-    output:
-    file "*" into results
-
-    script:
-    """
-    geneExp.py $gene_exp $params.conditions >> output.txt
-    """
-}
+// process gene_exp {
+//     tag "$gene_exp"
+//     publishDir "${params.outdir}", mode: 'copy'
+//
+//     input:
+//     file gene_exp from gene_exp
+//
+//     output:
+//     file "*" into results
+//
+//     script:
+//     """
+//     geneExp.py $gene_exp $params.conditions >> output.txt
+//     """
+// }
 
 
 
