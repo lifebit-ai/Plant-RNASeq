@@ -244,7 +244,7 @@ process real {
 
     script:
     """
-    real -t $reads -p $fasta -o ${reads}.bam
+    real -p $reads -t $fasta -o ${reads}.bam
     """
 }
 
@@ -307,7 +307,7 @@ process split_chr {
  * STEP 4 - no_reads - compute reads for each isochore
  */
 process no_reads {
-    tag "$isochores"
+    tag "$aligned_reads"
     publishDir "${params.outdir}/no_reads", mode: 'copy'
 
     input:
@@ -319,7 +319,9 @@ process no_reads {
 
     script:
     """
-    noReads.py $isochores $aligned_reads
+    for isochore in ${isochores}; do
+    noReads.py \$isochore $aligned_reads > output_\$isochore
+    done
     """
 }
 
@@ -329,7 +331,6 @@ process no_reads {
  * STEP 5 - no_reads - compute reads for each isochore
  */
 process gene_exp {
-    tag "$gene_exp"
     publishDir "${params.outdir}", mode: 'copy'
 
     input:
@@ -340,7 +341,9 @@ process gene_exp {
 
     script:
     """
-    geneExp.py $gene_exp $params.conditions >> output.txt
+    for isochore_reads in ${gene_exp}; do
+    geneExp.py \$isochore_reads $params.conditions >> \${isochore_reads}.txt
+    done
     """
 }
 
