@@ -237,11 +237,11 @@ process real {
     file fasta from fasta_real
 
     output:
-    file "${reads}.bam" into aligned_reads
+    file "${reads}.sam" into aligned_reads
 
     script:
     """
-    real -p $reads -t $fasta -o ${reads}.bam
+    real -p $reads -t $fasta -o ${reads}.sam
     """
 }
 
@@ -259,7 +259,7 @@ process split_chr {
 
    output:
    // file "*.fasta" into fastas
-   file "*.fasta" into chrs
+   file "*.fa" into chrs
 
    script:
    """
