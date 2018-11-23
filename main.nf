@@ -101,14 +101,12 @@ if( workflow.profile == 'awsbatch') {
  */
  if(params.readPaths){
      if(params.singleEnd){
-       print "\nsingle read paths\n"
          Channel
              .fromPath(params.readPaths)
              // .map { row -> [ row[0], [file(row[1][0])]] }
              .ifEmpty { exit 1, "params.readPaths was empty - no input files supplied" }
              .into { read_files_fastqc; read_files_real }
      } else {
-       print "\ndouble read paths\n"
          Channel
              .fromPath(params.readPaths)
              // .map { row -> [ row[0], [file(row[1][0]), file(row[1][1])]] }
@@ -116,7 +114,6 @@ if( workflow.profile == 'awsbatch') {
              .into { read_files_fastqc; read_files_real }
      }
  } else {
-   print "\ndouble reads\n"
      Channel
          .fromFilePairs( params.reads, size: params.singleEnd ? 1 : 2 )
          .ifEmpty { exit 1, "Cannot find any reads matching: ${params.reads}\nNB: Path needs to be enclosed in quotes!\nIf this is single-end data, please specify --singleEnd on the command line." }
@@ -291,12 +288,11 @@ process split_chr {
 
      output:
      file "*.csv" into isochores
-     file "*.png" into img
 
      script:
      """
      for chr in ${chrs}; do
-     isoSegmenter.py --infile \$chr --window_size 100000 --outfile \${chr}.csv --graphfile \${chr}.png --draw_legend --verbose
+     isoSegmenter.py --infile \$chr --window_size 100000 --outfile \${chr}.csv
      done
      """
  }
@@ -304,7 +300,7 @@ process split_chr {
 
 
 /*
- * STEP 4 - no_reads - compute reads for each isochore
+ * STEP 4 - no_reads - compute number of reads found in each isochore
  */
 process no_reads {
     tag "$aligned_reads"
@@ -328,7 +324,7 @@ process no_reads {
 
 
 /*
- * STEP 5 - no_reads - compute reads for each isochore
+ * STEP 5 - gene_exp - compute the gene expression
  */
 process gene_exp {
     publishDir "${params.outdir}", mode: 'copy'
