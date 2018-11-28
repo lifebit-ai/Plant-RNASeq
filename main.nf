@@ -70,17 +70,12 @@ fasta = Channel
       .ifEmpty { exit 1, "${params.fasta} not found"}
       //.map { file -> tuple(file.baseName, file) }
       .into { fasta_real; fasta_split_chr }
+
 // AWSBatch sanity checking
 if(workflow.profile == 'awsbatch'){
     if (!params.awsqueue || !params.awsregion) exit 1, "Specify correct --awsqueue and --awsregion parameters on AWSBatch!"
     if (!workflow.workDir.startsWith('s3') || !params.outdir.startsWith('s3')) exit 1, "Specify S3 URLs for workDir and outdir parameters on AWSBatch!"
 }
-//
-// NOTE - THIS IS NOT USED IN THIS PIPELINE, EXAMPLE ONLY
-// If you want to use the above in a process, define the following:
-//   input:
-//   file fasta from fasta
-//
 
 
 // Has the run name been specified by the user?
@@ -106,7 +101,6 @@ Channel
             .ifEmpty { exit 1, "${reads} was empty - no input files supplied" }
             .into { read_files_fastqc; read_files_real }
 
-// test.subscribe{println "value: $it"}
 
 // Header log info
 log.info """=======================================================
@@ -287,7 +281,7 @@ chrs.flatten()
 
      script:
      """
-     isoSegmenter.py --infile $chr --window_size 100000 --outfile \${name}.csv
+     isoSegmenter.py --infile $chr --window_size 100000 --outfile ${name}.csv
      """
  }
 
@@ -315,7 +309,7 @@ process no_reads {
     script:
     """
     ## compute number of reads found in each isochore expect for ch00
-    if ! [[ $name == *"ch00"* ]]; then
+    if ! [[ $isochore_name == *"ch00"* ]]; then
       noReads.py $isochore $aligned_reads > ${isochore_name}_${reads_name}.csv
     fi
     """
