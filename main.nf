@@ -106,6 +106,7 @@ Channel
             .ifEmpty { exit 1, "${reads} was empty - no input files supplied" }
             .into { read_files_fastqc; read_files_real }
 
+// test.subscribe{println "value: $it"}
 
 // Header log info
 log.info """=======================================================
@@ -221,7 +222,7 @@ process real {
     file fasta from fasta_real
 
     output:
-    file "${name}.sam" into aligned_reads
+    file "${name}.sam" into real_output
 
     script:
     """
@@ -305,7 +306,7 @@ process no_reads {
     publishDir "${params.outdir}/no_reads", mode: 'copy'
 
     input:
-    set val(reads_name), file aligned_reads from aligned_reads_no_reads
+    set val(reads_name), file(aligned_reads) from aligned_reads_no_reads
     set val(isochore_name), file(isochore) from isochores
 
     output:
