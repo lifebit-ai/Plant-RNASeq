@@ -99,28 +99,12 @@ if( workflow.profile == 'awsbatch') {
 /*
  * Create a channel for input read files
  */
- if(params.readPaths){
-     if(params.singleEnd){
-         Channel
-             .fromPath(params.readPaths)
-             // .map { row -> [ row[0], [file(row[1][0])]] }
-             .ifEmpty { exit 1, "params.readPaths was empty - no input files supplied" }
-             .into { read_files_fastqc; read_files_real }
-     } else {
-         Channel
-             .fromPath(params.readPaths)
-             // .map { row -> [ row[0], [file(row[1][0]), file(row[1][1])]] }
-             .ifEmpty { exit 1, "params.readPaths was empty - no input files supplied" }
-             .into { read_files_fastqc; read_files_real }
-     }
- } else {
-     Channel
-         .fromFilePairs( params.reads, size: params.singleEnd ? 1 : 2 )
-         .ifEmpty { exit 1, "Cannot find any reads matching: ${params.reads}\nNB: Path needs to be enclosed in quotes!\nIf this is single-end data, please specify --singleEnd on the command line." }
-         .into { read_files_fastqc; read_files_real }
- }
-
- // readCh.subscribe { println "value: $it" }
+reads="${params.reads_folder}/*.${params.reads_extension}"
+Channel
+            .fromPath(reads)
+            .map { file -> tuple(file.baseName, file) }
+            .ifEmpty { exit 1, "${reads} was empty - no input files supplied" }
+            .into { read_files_fastqc; read_files_real }
 
 
 // Header log info
@@ -137,10 +121,10 @@ def summary = [:]
 summary['Pipeline Name']  = 'nf-core/plant-rnaseq'
 summary['Pipeline Version'] = workflow.manifest.version
 summary['Run Name']     = custom_runName ?: workflow.runName
+summary['Reads']        = reads
 if(params.readPaths) summary['Reads'] = params.readPaths
 if(params.reads) summary['Reads'] = params.reads
 summary['Fasta Ref']    = params.fasta
-summary['Data Type']    = params.singleEnd ? 'Single-End' : 'Paired-End'
 summary['Max Memory']   = params.max_memory
 summary['Max CPUs']     = params.max_cpus
 summary['Max Time']     = params.max_time
@@ -212,7 +196,7 @@ process fastqc {
         saveAs: {filename -> filename.indexOf(".zip") > 0 ? "zips/$filename" : "$filename"}
 
     input:
-    file(reads) from read_files_fastqc
+    set val(name), file(reads) from read_files_fastqc
 
     output:
     file "*_fastqc.{zip,html}" into fastqc_results
@@ -233,7 +217,7 @@ process real {
     publishDir "${params.outdir}/real", mode: 'copy'
 
     input:
-    file(reads) from read_files_real
+    set val(name), file(reads) from read_files_real
     file fasta from fasta_real
 
     output:
@@ -241,7 +225,7 @@ process real {
 
     script:
     """
-    real -p $reads -t $fasta -o ${reads}.sam
+    real -p $reads -t $fasta -o ${name}.sam
     """
 }
 
@@ -315,9 +299,13 @@ process no_reads {
 
     script:
     """
+    ## call script
     for isochore in ${isochores}; do
     noReads.py \$isochore $aligned_reads > output_\$isochore
     done
+
+    ## combine outputs into one file in the correct format
+    #mk_gene_exp_input.py
     """
 }
 
