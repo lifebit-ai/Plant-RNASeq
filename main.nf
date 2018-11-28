@@ -221,7 +221,7 @@ process real {
     file fasta from fasta_real
 
     output:
-    file "${reads}.sam" into aligned_reads
+    file "${name}.sam" into aligned_reads
 
     script:
     """
@@ -230,9 +230,14 @@ process real {
 }
 
 
+// emit individual SAM files with their prefix for no_reads process
+real_output.flatten()
+    .map{ file -> tuple(file.baseName, file) }
+    .set{aligned_reads_no_reads}
+
 
 /*
- * STEP 3.0 - split_chr - split the fasta genome into seperate files for each chromosome using pyfaidx
+ * STEP 3A - split_chr - split the fasta genome into seperate files for each chromosome using pyfaidx
  */
 process split_chr {
    tag "$fasta"
@@ -242,7 +247,6 @@ process split_chr {
    file fasta from fasta_split_chr
 
    output:
-   // file "*.fasta" into fastas
    file "*.fa" into chrs
 
    script:
@@ -252,11 +256,18 @@ process split_chr {
 }
 
 
+// emit individual FASTA files with their prefix for isoSegmenter
+chrs.flatten()
+    .map{ file -> tuple(file.baseName, file) }
+    .set{chr}
+
 
 /*
- * STEP 3.1 - isoSegmenter - segment genomes into isochores i.e. split the genome into chromosomes
+ * STEP 3B - isoSegmenter - segment genomes into isochores i.e. split the genome into chromosomes
  */
  process isosegmenter {
+
+     tag "$chr"
 
      publishDir "${params.outdir}/isosegmenter", mode: 'copy'
      // saveAs: {filename ->
@@ -268,44 +279,65 @@ process split_chr {
      container 'bunop/isosegmenter:latest'
 
      input:
-     file chrs from chrs
+     set val(name), file(chr) from chr
 
      output:
-     file "*.csv" into isochores
+     file "*.csv" into iso
 
      script:
      """
-     for chr in ${chrs}; do
-     isoSegmenter.py --infile \$chr --window_size 100000 --outfile \${chr}.csv
-     done
+     isoSegmenter.py --infile $chr --window_size 100000 --outfile \${name}.csv
      """
  }
 
 
+// emit individual csv files with their prefix for no_reads
+ iso.flatten()
+     .map{ file -> tuple(file.baseName, file) }
+     .set{isochores}
+
 
 /*
- * STEP 4 - no_reads - compute number of reads found in each isochore
+ * STEP 4A - no_reads - compute number of reads found in each isochore
  */
 process no_reads {
     tag "$aligned_reads"
     publishDir "${params.outdir}/no_reads", mode: 'copy'
 
     input:
-    file aligned_reads from aligned_reads
-    file isochores from isochores
+    set val(reads_name), file aligned_reads from aligned_reads_no_reads
+    set val(isochore_name), file(isochore) from isochores
 
     output:
-    file "*.csv" into gene_exp
+    file "*.csv" into csv
 
     script:
     """
-    ## call script
-    for isochore in ${isochores}; do
-    noReads.py \$isochore $aligned_reads > output_\$isochore
-    done
+    ## compute number of reads found in each isochore expect for ch00
+    if ! [[ $name == *"ch00"* ]]; then
+      noReads.py $isochore $aligned_reads > ${isochore_name}_${reads_name}.csv
+    fi
+    """
+}
 
-    ## combine outputs into one file in the correct format
-    #mk_gene_exp_input.py
+
+
+/*
+ * STEP 4B - combine outputs into one file in the correct format
+ */
+process mk_gene_exp_input {
+
+    publishDir "${params.outdir}/mk_gene_exp_input", mode: 'copy'
+
+    input:
+    file csv from csv.collect()
+
+    output:
+    file "gene_exp_input.csv" into gene_exp
+
+    script:
+    """
+    mk_gene_exp_input.py
     """
 }
 
@@ -318,16 +350,14 @@ process gene_exp {
     publishDir "${params.outdir}", mode: 'copy'
 
     input:
-    file gene_exp from gene_exp
+    file isochore_reads from gene_exp
 
     output:
     file "*" into results
 
     script:
     """
-    for isochore_reads in ${gene_exp}; do
-    geneExp.py \$isochore_reads $params.conditions >> \${isochore_reads}.txt
-    done
+    geneExp.py $isochore_reads $params.conditions >> output_gene_expression.csv
     """
 }
 
