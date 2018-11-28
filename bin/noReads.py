@@ -30,7 +30,7 @@ for i in range(0, len(isochores)):
 		for j in range(0, len(reads)):
 			ending = re.search('(ch[0-9]+)', sys.argv[1]).group(0)
 			if( reads[j][8].endswith( ending ) ): #suffix should correspond to correct chromosome input in line 5.
-				if  float(reads[j][9]) <  float(isochores[i][0]) and (float(reads[j][9]) + float(reads[j][6])  > float(isochores[i][0])) and   ( ( float(reads[j][9]) + float(reads[j][6]) ) -  float(isochores[i][0]) ) > ( float(reads[j][9]) + float(reads[j][6]) )/2:
+				if float(reads[j][9]) <  float(isochores[i][0]) and (float(reads[j][9]) + float(reads[j][6])  > float(isochores[i][0])) and   ( ( float(reads[j][9]) + float(reads[j][6]) ) -  float(isochores[i][0]) ) > ( float(reads[j][9]) + float(reads[j][6]) )/2:
 					counter = counter +1
 				elif float(reads[j][9]) > float(isochores[i][0]) and ( ( float(reads[j][9]) +  float(reads[j][6]) ) < float(isochores[i][1]) ):
 					counter = counter +1
