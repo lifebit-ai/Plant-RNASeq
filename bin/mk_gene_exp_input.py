@@ -5,8 +5,8 @@ import glob
 import re
 
 ## read in all output csv files from isoSegmenter & noReads
-isoSegmenter_chs = glob.glob('../ec2_results/isosegmenter/*.csv')
-no_reads_chs = glob.glob("../ec2_results/no_reads/*.csv")
+isoSegmenter_chs = glob.glob('../ec2_results/isosegmenter/*.csv') # TODO: use regex pattern to get files for nf script
+no_reads_chs = glob.glob("../ec2_results/no_reads/*.csv") # TODO: use regex pattern to get files for nf script
 
 isoSegmenter_dfs = []
 no_reads_dfs = []
@@ -38,6 +38,8 @@ for isoSegmenter in isoSegmenter_dfs:
         if re.search('(ch[0-9]+)', isoSegmenter).group(0) == re.search('(ch[0-9]+)', no_reads).group(0):
             counter+=1
             vars()[isoSegmenter][('No of Reads %s' % counter)] = vars()[no_reads]
+    ## add chr column
+    vars()[isoSegmenter]['Chromosome'] = re.search('ch([0-9]+)', isoSegmenter).group(1).lstrip("0")
 
 # example of what ^ evaluates to
 # ch01_isoSegmenter['No of Reads 1'] = ch01_SRR346617_no_reads
@@ -47,13 +49,27 @@ for isoSegmenter in isoSegmenter_dfs:
 # ch02_isoSegmenter['No of Reads 2'] = ch02_SRR346618_no_reads
 # ch02_isoSegmenter['No of Reads 3'] = ch02_SRR346619_no_reads
 
-#TODO: need to do everyhting below here for all files
+## format command correctly
+all_isoSegmenter = ",".join(isoSegmenter_dfs)
+all_isoSegmenter_brackets = "[%s]" % all_isoSegmenter
 
-## join all of the isoSegmenter_output files (which contain the no_reads_output)
-for isoSegmenter in isoSegmenter_dfs:
-    result = pd.concat([ch01_isoSegmenter, ch02_isoSegmenter], ignore_index=True)
+## concat all isoSegmenter_output files (which contain the no_reads_output) into one data frame
+result = pd.concat(eval(all_isoSegmenter_brackets), ignore_index=True)
+## replicate original column order TODO: check this doesn't remove No of Reads columns
+result = result[eval(all_isoSegmenter_brackets)[0].columns]
 
-## rename & reorder columns
+## rename columns
+result.rename(columns={'AVG_GClevel': 'GC Level', 'Class': 'Isochore Class', 'Start': 'Isochore Start', 'End': 'Isochore End', 'Size': 'Isochore Size'}, inplace=True)
+## remove STDDEV_GClevel column
+result.drop(['STDDEV_GClevel'], axis=1, inplace=True)
+
+## reorder columns
+cols = list(result.columns.values)
+headers = ['Isochore Size', 'Isochore End', 'Isochore Start', 'Isochore Class', 'GC Level', 'Chromosome']
+for header in headers:
+    cols.remove(header)
+    cols = [header] + cols
+result = result[cols]
 
 ## output csv
-result.to_csv('hope_this_works.csv')
+result.to_csv('gene_exp_input.csv')
