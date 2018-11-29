@@ -215,6 +215,7 @@ process real {
 
     input:
     set val(name), file(reads) from read_files_real
+    file fasta from fasta_real
 
     output:
     file "${name}.sam" into real_output, real_mk_gene_exp_input
