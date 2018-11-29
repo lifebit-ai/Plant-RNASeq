@@ -95,11 +95,13 @@ if( workflow.profile == 'awsbatch') {
  * Create a channel for input read files
  */
 reads="${params.reads_folder}/*.${params.reads_extension}"
-read_files_real = Channel
+Channel
             .fromPath(reads)
             .map { file -> tuple(file.baseName, file) }
             .ifEmpty { exit 1, "${reads} was empty - no input files supplied" }
-            //.into { read_files_fastqc; read_files_real }
+            .into { read_files_fastqc; read_files_real }
+
+read_files_fastqc.subscribe{println "value: $it"}
 
 
 // Header log info
@@ -213,10 +215,9 @@ process real {
 
     input:
     set val(name), file(reads) from read_files_real
-    file fasta from fasta_real
 
     output:
-    file "${name}.sam" into real_output
+    file "${name}.sam" into real_output, real_mk_gene_exp_input
 
     script:
     """
@@ -277,7 +278,7 @@ chrs.flatten()
      set val(name), file(chr) from chr
 
      output:
-     file "*.csv" into iso
+     file "*.csv" into iso, iso_mk_gene_exp_input
 
      script:
      """
@@ -289,26 +290,26 @@ chrs.flatten()
 // emit individual csv files with their prefix for no_reads
  iso.flatten()
      .map{ file -> tuple(file.baseName, file) }
-     .set{isochores}
+     .combine(aligned_reads_no_reads)
+     .into{ no_reads; mk_gene_exp_input }
 
 
 /*
  * STEP 4A - no_reads - compute number of reads found in each isochore
  */
 process no_reads {
-    tag "$aligned_reads"
+    tag "${isochore_name}_${reads_name}.csv"
     publishDir "${params.outdir}/no_reads", mode: 'copy'
 
     input:
-    set val(reads_name), file(aligned_reads) from aligned_reads_no_reads
-    set val(isochore_name), file(isochore) from isochores
+    set val(isochore_name), file(isochore), val(reads_name), file(aligned_reads) from no_reads
 
     output:
     file "*.csv" into csv
 
     script:
     """
-    ## compute number of reads found in each isochore expect for ch00
+    ## compute number of reads found in each isochore except for ch00
     if ! [[ $isochore_name == *"ch00"* ]]; then
       noReads.py $isochore $aligned_reads > ${isochore_name}_${reads_name}.csv
     fi
@@ -325,6 +326,8 @@ process mk_gene_exp_input {
     publishDir "${params.outdir}/mk_gene_exp_input", mode: 'copy'
 
     input:
+    file aligned_reads from real_mk_gene_exp_input.collect()
+    file iso from iso_mk_gene_exp_input.collect()
     file csv from csv.collect()
 
     output:
@@ -342,6 +345,8 @@ process mk_gene_exp_input {
  * STEP 5 - gene_exp - compute the gene expression
  */
 process gene_exp {
+    tag "output_gene_expression.csv"
+
     publishDir "${params.outdir}", mode: 'copy'
 
     input:
