@@ -95,11 +95,11 @@ if( workflow.profile == 'awsbatch') {
  * Create a channel for input read files
  */
 reads="${params.reads_folder}/*.${params.reads_extension}"
-Channel
+read_files_real = Channel
             .fromPath(reads)
             .map { file -> tuple(file.baseName, file) }
             .ifEmpty { exit 1, "${reads} was empty - no input files supplied" }
-            .into { read_files_fastqc; read_files_real }
+            //.into { read_files_fastqc; read_files_real }
 
 
 // Header log info
@@ -185,22 +185,22 @@ ${summary.collect { k,v -> "            <dt>$k</dt><dd><samp>${v ?: '<span style
 /*
  * STEP 1 - FastQC
  */
-process fastqc {
-    tag "$reads"
-    publishDir "${params.outdir}/fastqc", mode: 'copy',
-        saveAs: {filename -> filename.indexOf(".zip") > 0 ? "zips/$filename" : "$filename"}
-
-    input:
-    set val(name), file(reads) from read_files_fastqc
-
-    output:
-    file "*_fastqc.{zip,html}" into fastqc_results
-
-    script:
-    """
-    fastqc -q $reads
-    """
-}
+// process fastqc {
+//     tag "$reads"
+//     publishDir "${params.outdir}/fastqc", mode: 'copy',
+//         saveAs: {filename -> filename.indexOf(".zip") > 0 ? "zips/$filename" : "$filename"}
+//
+//     input:
+//     set val(name), file(reads) from read_files_fastqc
+//
+//     output:
+//     file "*_fastqc.{zip,html}" into fastqc_results
+//
+//     script:
+//     """
+//     fastqc -q $reads
+//     """
+// }
 
 
 
@@ -226,7 +226,7 @@ process real {
 
 
 // emit individual SAM files with their prefix for no_reads process
-real_output.flatten()
+real_output//.flatten()
     .map{ file -> tuple(file.baseName, file) }
     .set{aligned_reads_no_reads}
 
