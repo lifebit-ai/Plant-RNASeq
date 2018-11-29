@@ -5,8 +5,8 @@ import glob
 import re
 
 ## read in all output csv files from isoSegmenter & noReads
-isoSegmenter_chs = glob.glob('../ec2_results/isosegmenter/*.csv') # TODO: use regex pattern to get files for nf script
-no_reads_chs = glob.glob("../ec2_results/no_reads/*.csv") # TODO: use regex pattern to get files for nf script
+isoSegmenter_chs = glob.glob('*ch[0-9][0-9].csv')
+no_reads_chs = glob.glob("*SRR*.csv")
 
 isoSegmenter_dfs = []
 no_reads_dfs = []
@@ -14,7 +14,7 @@ no_reads_dfs = []
 ## for all chrs set ch<number>_isoSegmenter equal to data frame containing the isoSegmenter output (eg ch01_isoSegmenter)
 for isoSegmenter_ch in isoSegmenter_chs:
     ch = re.search('(ch[0-9]+)', isoSegmenter_ch).group(0)
-    exec(ch + "_isoSegmenter" + " = pd.read_csv('../ec2_results/isosegmenter/SL2.31%s.fa.csv', sep=',')" % ch)
+    exec(ch + "_isoSegmenter" + " = pd.read_csv(isoSegmenter_ch, sep=',')")
 
 ## save all isoSegmenter variables that were set in an array
 for variable in dir():
@@ -24,7 +24,7 @@ for variable in dir():
 ## for all chrs & all fastqs set data frames containing the noReads output equal to ch<numer>_SRR<number> eg ch01_SRR346617_no_reads
 for no_reads_ch in no_reads_chs:
     ch_fastq = re.search('(ch[0-9]+_SRR[0-9]+)', no_reads_ch).group(0)
-    exec(ch_fastq + "_no_reads" + " = pd.read_csv('../ec2_results/no_reads/no_reads_output_SL2.31%s.csv', sep=',')" % ch_fastq)
+    exec(ch_fastq + "_no_reads" + " = pd.read_csv(no_reads_ch, sep=',')")
 
 ## save all no_reads variables that were set in an array
 for variable in dir():
@@ -55,7 +55,7 @@ all_isoSegmenter_brackets = "[%s]" % all_isoSegmenter
 
 ## concat all isoSegmenter_output files (which contain the no_reads_output) into one data frame
 result = pd.concat(eval(all_isoSegmenter_brackets), ignore_index=True)
-## replicate original column order TODO: check this doesn't remove No of Reads columns
+## replicate original column order (WARNING if all the reads columns are not present for all files they may be removed)
 result = result[eval(all_isoSegmenter_brackets)[0].columns]
 
 ## rename columns
