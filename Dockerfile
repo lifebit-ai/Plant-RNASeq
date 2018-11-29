@@ -10,6 +10,8 @@ ENV PATH /opt/conda/envs/nf-core-plant-rnaseq-1.0dev/bin:$PATH
 
 COPY ./bin/noReads.py /usr/local/bin/
 COPY ./bin/geneExp.py /usr/local/bin/
+COPY ./bin/mk_gene_exp_input.py /usr/local/bin/
 
-RUN chmod +x //usr/local/bin/noReads.py
-RUN chmod +x //usr/local/bin/geneExp.py
+RUN chmod +x /usr/local/bin/noReads.py
+RUN chmod +x /usr/local/bin/geneExp.py
+RUN chmod +x /usr/local/bin/mk_gene_exp_input.py
