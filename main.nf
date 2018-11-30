@@ -314,7 +314,7 @@ process no_reads {
       for aligned_read in ${aligned_reads}; do
         for isochore in ${isochores}; do
             if ! [[ \$isochore == *"ch00"* ]]; then
-              echo "noReads.py \$isochore \$aligned_read > \${isochore}_\${aligned_read}.csv"
+              noReads.py \$isochore \$aligned_read > \${isochore}_\${aligned_read}.csv
             fi
         done
       done
