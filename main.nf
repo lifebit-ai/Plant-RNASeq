@@ -291,29 +291,33 @@ chrs.flatten()
 // emit individual csv files with their prefix for no_reads
  iso.flatten()
      .map{ file -> tuple(file.baseName, file) }
-     .combine(aligned_reads_no_reads)
-     .into{ no_reads; mk_gene_exp_input }
+     //.combine(aligned_reads_no_reads)
+     .set{ iso_no_reads }
 
 
 /*
  * STEP 4A - no_reads - compute number of reads found in each isochore
  */
 process no_reads {
-    tag "${isochore_name}_${reads_name}.csv"
+
     publishDir "${params.outdir}/no_reads", mode: 'copy'
 
     input:
-    set val(isochore_name), file(isochore), val(reads_name), file(aligned_reads) from no_reads
+    set val(isochores_name), file(isochores) from iso_no_reads.collect()
+    set val(aligned_reads_name), file(aligned_reads) from aligned_reads_no_reads.collect()
 
     output:
     file "*.csv" into csv
 
     script:
     """
-    ## compute number of reads found in each isochore except for ch00
-    if ! [[ $isochore_name == *"ch00"* ]]; then
-      noReads.py $isochore $aligned_reads > ${isochore_name}_${reads_name}.csv
-    fi
+      for aligned_read in ${aligned_reads}; do
+        for isochore in ${isochores}; do
+            if ! [[ \$isochore == *"ch00"* ]]; then
+              echo "noReads.py \$isochore \$aligned_read > \${isochore}_\${aligned_read}.csv"
+            fi
+        done
+      done
     """
 }
 
