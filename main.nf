@@ -333,7 +333,7 @@ process mk_gene_exp_input {
     input:
     file aligned_reads from real_mk_gene_exp_input.collect()
     file iso from iso_mk_gene_exp_input.collect()
-    file csv from csv.collect()
+    file csv from csv
 
     output:
     file "gene_exp_input.csv" into gene_exp
@@ -358,7 +358,7 @@ process gene_exp {
     file isochore_reads from gene_exp
 
     output:
-    file "*" into results
+    file "output_gene_expression.csv" into results
 
     script:
     """
