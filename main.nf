@@ -288,7 +288,7 @@ chrs.flatten()
  }
 
 
-// emit individual csv files with their prefix for no_reads
+// emit individual csv files & aligned reads with their prefix for no_reads
  iso.flatten()
      .map{ file -> tuple(file.baseName, file) }
      .combine(aligned_reads_no_reads)
