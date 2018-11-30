@@ -229,7 +229,7 @@ process real {
 
 // emit individual SAM files with their prefix for no_reads process
 real_output//.flatten()
-    .map{ file -> tuple(file.baseName, file) }
+    //.map{ file -> tuple(file.baseName, file) }
     .set{aligned_reads_no_reads}
 
 
@@ -290,7 +290,7 @@ chrs.flatten()
 
 // emit individual csv files with their prefix for no_reads
  iso.flatten()
-     .map{ file -> tuple(file.baseName, file) }
+     //.map{ file -> tuple(file.baseName, file) }
      //.combine(aligned_reads_no_reads)
      .set{ iso_no_reads }
 
@@ -303,8 +303,8 @@ process no_reads {
     publishDir "${params.outdir}/no_reads", mode: 'copy'
 
     input:
-    set val(isochores_name), file(isochores) from iso_no_reads.collect()
-    set val(aligned_reads_name), file(aligned_reads) from aligned_reads_no_reads.collect()
+    file isochores from iso_no_reads.collect()
+    file aligned_reads from aligned_reads_no_reads.collect()
 
     output:
     file "*.csv" into csv
