@@ -99,6 +99,7 @@ Channel
             .fromPath(reads)
             .map { file -> tuple(file.baseName, file) }
             .ifEmpty { exit 1, "${reads} was empty - no input files supplied" }
+            .combine(fasta_real)
             .into { read_files_fastqc; read_files_real }
 
 read_files_fastqc.subscribe{println "value: $it"}
@@ -215,8 +216,7 @@ process real {
     publishDir "${params.outdir}/real", mode: 'copy'
 
     input:
-    set val(name), file(reads) from read_files_real
-    file fasta from fasta_real
+    set val(name), file(reads), file(fasta_real) from read_files_real
 
     output:
     set val(name), file("*.aln") into real_output
@@ -331,7 +331,7 @@ process mk_gene_exp_input {
 
     input:
     file iso from iso_mk_gene_exp_input.collect()
-    file csv from csv
+    file csv from csv.collect()
 
     output:
     file "gene_exp_input.csv" into gene_exp
