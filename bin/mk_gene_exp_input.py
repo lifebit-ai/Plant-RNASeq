@@ -23,7 +23,7 @@ for variable in dir():
 
 ## for all chrs & all fastqs set data frames containing the noReads output equal to ch<numer>_SRR<number> eg ch01.csv__SRR346617_no_reads
 for no_reads_ch in no_reads_chs:
-    ch_fastq = re.search('(ch[0-9]+.csv_SRR[0-9]+)', no_reads_ch).group(0)
+    ch_fastq = re.search('(ch[0-9]+_SRR[0-9]+)', no_reads_ch).group(0)
     exec(ch_fastq + "_no_reads" + " = pd.read_csv(no_reads_ch, sep=',')")
 
 ## save all no_reads variables that were set in an array

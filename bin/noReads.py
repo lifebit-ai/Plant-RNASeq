@@ -28,8 +28,13 @@ for i in range(0, len(isochores)):
 	if ( isochores[i][3] != "gap" ):
 		counter = 0
 		for j in range(0, len(reads)):
-			ending = re.search('(ch[0-9]+)', sys.argv[1]).group(0)
-			if( reads[j][8].endswith( ending ) ): #suffix should correspond to correct chromosome input in line 8.
+			start = float(reads[j][9])
+			end = float(reads[j][9]) + float(reads[j][6])
+
+			if start > float(isochores[i][1]):
+				break
+
+			if end > float(isochores[i][0]):
 				if float(reads[j][9]) <  float(isochores[i][0]) and (float(reads[j][9]) + float(reads[j][6])  > float(isochores[i][0])) and   ( ( float(reads[j][9]) + float(reads[j][6]) ) -  float(isochores[i][0]) ) > ( float(reads[j][9]) + float(reads[j][6]) )/2:
 					counter = counter +1
 				elif float(reads[j][9]) > float(isochores[i][0]) and ( ( float(reads[j][9]) +  float(reads[j][6]) ) < float(isochores[i][1]) ):
@@ -38,4 +43,4 @@ for i in range(0, len(isochores)):
 					counter=counter+1
 
 
-	print( counter )
+	print( i, counter )
