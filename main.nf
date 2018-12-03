@@ -216,7 +216,7 @@ process real {
     publishDir "${params.outdir}/real", mode: 'copy'
 
     input:
-    set val(name), file(reads), file(fasta_real) from read_files_real
+    set val(name), file(reads), file(fasta) from read_files_real
 
     output:
     set val(name), file("*.aln") into real_output
