@@ -54,6 +54,8 @@ if (params.help){
     helpMessage()
     exit 0
 }
+// Get as many processors as machine has
+int threads = Runtime.getRuntime().availableProcessors()
 
 // Configurable variables
 params.name = false
@@ -211,7 +213,7 @@ ${summary.collect { k,v -> "            <dt>$k</dt><dd><samp>${v ?: '<span style
  * STEP 2 - REAL - align RNA data
  */
 process real {
-    cpus 16
+    cpus threads
     tag "$reads"
     publishDir "${params.outdir}/real", mode: 'copy'
 
@@ -286,7 +288,8 @@ chrs.flatten()
 
      script:
      """
-     isoSegmenter.py --infile $chr --window_size 100000 --outfile ${name}.csv
+     isoSegmenter.py --infile $chr --window_size 100000 --outfile ${name}_wgap.csv
+     awk 'BEGIN{FS=","}\$4!="gap"{print \$0}' ${name}_wgap.csv > ${name}.csv
      """
  }
 
@@ -316,7 +319,8 @@ process no_reads {
 
     script:
     """
-    noReads.py $isochore $aligned_read > ${isochore_name}_${sample_name}.csv
+    sort -k 10,10n $aligned_read > ${aligned_read}.s
+    noReads.py $isochore ${aligned_read}.s > ${isochore_name}_${sample_name}.csv
     """
 }
 
