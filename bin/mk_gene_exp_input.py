@@ -23,8 +23,8 @@ for variable in dir():
 
 ## for all chrs & all fastqs set data frames containing the noReads output equal to ch<numer>_SRR<number> eg ch01.csv__SRR346617_no_reads
 for no_reads_ch in no_reads_chs:
-    ch_fastq = re.search('(ch[0-9]+.csv_SRR[0-9]+)', no_reads_ch).group(0)
-    exec(ch_fastq + "_no_reads" + " = pd.read_csv(no_reads_ch, sep=',')")
+    ch_fastq = re.search('(ch[0-9]+_SRR[0-9]+)', no_reads_ch).group(0)
+    exec(ch_fastq + "_no_reads" + " = pd.read_csv(no_reads_ch, sep=',', header=None)")
 
 ## save all no_reads variables that were set in an array
 for variable in dir():
@@ -39,7 +39,7 @@ for isoSegmenter in isoSegmenter_dfs:
             counter+=1
             vars()[isoSegmenter][('No of Reads %s' % counter)] = vars()[no_reads]
     ## add chr column
-    vars()[isoSegmenter]['Chromosome'] = re.search('ch([0-9]+)', isoSegmenter).group(1).lstrip("0")
+    vars()[isoSegmenter]['Chromosome'] = re.search('ch([0-9]+)', isoSegmenter).group(1)
 
 # example of what ^ evaluates to
 # ch01_isoSegmenter['No of Reads 1'] = ch01_SRR346617_no_reads
@@ -72,4 +72,4 @@ for header in headers:
 result = result[cols]
 
 ## output csv
-result.to_csv('gene_exp_input.csv')
+result.to_csv('gene_exp_input.csv', index=False)

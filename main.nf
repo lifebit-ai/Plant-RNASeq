@@ -54,6 +54,8 @@ if (params.help){
     helpMessage()
     exit 0
 }
+// Get as many processors as machine has
+int threads = Runtime.getRuntime().availableProcessors()
 
 // Configurable variables
 params.name = false
@@ -99,6 +101,7 @@ Channel
             .fromPath(reads)
             .map { file -> tuple(file.baseName, file) }
             .ifEmpty { exit 1, "${reads} was empty - no input files supplied" }
+            .combine(fasta_real)
             .into { read_files_fastqc; read_files_real }
 
 read_files_fastqc.subscribe{println "value: $it"}
@@ -210,26 +213,33 @@ ${summary.collect { k,v -> "            <dt>$k</dt><dd><samp>${v ?: '<span style
  * STEP 2 - REAL - align RNA data
  */
 process real {
+    cpus threads
     tag "$reads"
     publishDir "${params.outdir}/real", mode: 'copy'
 
     input:
-    set val(name), file(reads) from read_files_real
-    file fasta from fasta_real
+    set val(name), file(reads), file(fasta) from read_files_real
 
     output:
-    file "${name}.sam" into real_output, real_mk_gene_exp_input
+    set val(name), file("*.aln") into real_output
 
     script:
     """
-    real -p $reads -t $fasta -o ${name}.sam
+    real -T ${task.cpus} -p $reads -t $fasta -o ${name}.out
+    awk '{ print >> \$9".aln" }' ${name}.out
     """
 }
 
 
 // emit individual SAM files with their prefix for no_reads process
-real_output//.flatten()
-    //.map{ file -> tuple(file.baseName, file) }
+real_output
+   .flatMap { aln ->
+        list_chrs = []
+        aln[1].each { chrFile ->
+                list_chrs << tuple(chrFile.baseName, aln[0], chrFile)
+        }
+        list_chrs
+    }
     .set{aligned_reads_no_reads}
 
 
@@ -267,11 +277,6 @@ chrs.flatten()
      tag "$chr"
 
      publishDir "${params.outdir}/isosegmenter", mode: 'copy'
-     // saveAs: {filename ->
-     //     if (filename == "*.png") "img/$filename"
-     //     else if (filename == "*.csv") filename
-     //     else null
-     // }
 
      container 'bunop/isosegmenter:latest'
 
@@ -279,20 +284,24 @@ chrs.flatten()
      set val(name), file(chr) from chr
 
      output:
-     file "*.csv" into iso, iso_mk_gene_exp_input
+     file "${name}.csv" into iso, iso_mk_gene_exp_input
 
      script:
      """
-     isoSegmenter.py --infile $chr --window_size 100000 --outfile ${name}.csv
+     isoSegmenter.py --infile $chr --window_size 100000 --outfile ${name}_wgap.csv
+     awk 'BEGIN{FS=","}\$4!="gap"{print \$0}' ${name}_wgap.csv > ${name}.csv
      """
  }
 
 
 // emit individual csv files with their prefix for no_reads
- iso.flatten()
-     //.map{ file -> tuple(file.baseName, file) }
-     //.combine(aligned_reads_no_reads)
-     .set{ iso_no_reads }
+iso.flatten()
+    .map{ file -> tuple(file.baseName, file) }
+    .cross(aligned_reads_no_reads)
+    .map { it ->
+       [it[1][0], it[1][1], it[1][2], it[0][1]]
+     }
+    .set{ iso_no_reads }
 
 
 /*
@@ -303,21 +312,15 @@ process no_reads {
     publishDir "${params.outdir}/no_reads", mode: 'copy'
 
     input:
-    file isochores from iso_no_reads.collect()
-    file aligned_reads from aligned_reads_no_reads.collect()
+    set val(isochore_name), val(sample_name), file(aligned_read), file(isochore) from iso_no_reads
 
     output:
     file "*.csv" into csv
 
     script:
     """
-      for aligned_read in ${aligned_reads}; do
-        for isochore in ${isochores}; do
-            if ! [[ \$isochore == *"ch00"* ]]; then
-              noReads.py \$isochore \$aligned_read > \${isochore}_\${aligned_read}.csv
-            fi
-        done
-      done
+    sort -k 10,10n $aligned_read > ${aligned_read}.s
+    noReads.py $isochore ${aligned_read}.s > ${isochore_name}_${sample_name}.csv
     """
 }
 
@@ -331,9 +334,8 @@ process mk_gene_exp_input {
     publishDir "${params.outdir}/mk_gene_exp_input", mode: 'copy'
 
     input:
-    file aligned_reads from real_mk_gene_exp_input.collect()
     file iso from iso_mk_gene_exp_input.collect()
-    file csv from csv
+    file csv from csv.collect()
 
     output:
     file "gene_exp_input.csv" into gene_exp
