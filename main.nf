@@ -22,26 +22,15 @@ def helpMessage() {
     nextflow run nf-core/plant-rnaseq --reads '*_R{1,2}.fastq.gz' -profile standard,docker
 
     Mandatory arguments:
-      --reads                       Path to input data (must be surrounded with quotes)
-      --genome                      Name of iGenomes reference
+      --reads_folder                Path to folder containing input FASTQ files
+      --fasta                       Path to reference FASTA file used to align the reads against with real
       --conditions                  Integer to represent the number of conditions that the RNA data was grouped into intially eg 4
-      -profile                      Configuration profile to use. Can use multiple (comma separated)
-                                    Available: standard, conda, docker, singularity, awsbatch, test
-
-    Options:
-      --singleEnd                   Specifies that the input is single end reads
-
-    References                      If not specified in the configuration file or you wish to overwrite any of the references.
-      --fasta                       Path to Fasta reference
 
     Other options:
+      --reads_prefix                Can be used to run the pipeline for a subset of the reads in the reads_folder
+      --reads_extension             Extension of the FASTQ files in reads_folder (default = "fastq")
       --outdir                      The output directory where the results will be saved
-      --email                       Set this parameter to your e-mail address to get a summary e-mail with details of the run sent to you when the workflow exits
-      -name                         Name for the pipeline run. If not specified, Nextflow will automatically generate a random mnemonic.
 
-    AWSBatch options:
-      --awsqueue                    The AWSBatch JobQueue that needs to be set when running on AWSBatch
-      --awsregion                   The AWS Region for your AWS Batch job to run on
     """.stripIndent()
 }
 
