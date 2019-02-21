@@ -19,7 +19,7 @@ def helpMessage() {
 
     The typical command for running the pipeline is as follows:
 
-    nextflow run nf-core/plant-rnaseq --reads '*_R{1,2}.fastq.gz' -profile standard,docker
+    nextflow run lifebit-ai/Plant-RNASeq --reads_folder /path/to/myFolder --fasta /path/to/my.fasta --conditions "4 6,9 10,13 14,17 18,21"
 
     Mandatory arguments:
       --reads_folder                Path to folder containing input FASTQ files
