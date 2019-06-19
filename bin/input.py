@@ -75,7 +75,7 @@ os.makedirs( "aligned")
 for filename_genome in os.listdir(path):
 	for filename_read in os.listdir(path_reads): 
 		print("-Running REAL on " + str(filename_read) )
-		command = r'./real -t ' + path + str(filename_genome) + ' -s ' +  str(args.seed_errors) + ' -e ' + str(args.total_errors) + ' -l ' + str(args.seed_length) + ' -T ' + str(args.total_errors) + ' -p ' + path_reads+filename_read + ' -o aligned/'+str(filename_read)+'.OUT'
+		command = r'real -t ' + path + str(filename_genome) + ' -s ' +  str(args.seed_errors) + ' -e ' + str(args.total_errors) + ' -l ' + str(args.seed_length) + ' -T ' + str(args.total_errors) + ' -p ' + path_reads+filename_read + ' -o aligned/'+str(filename_read)+'.OUT'
 		os.system(command)
 
 
