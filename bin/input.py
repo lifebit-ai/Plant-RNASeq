@@ -79,12 +79,3 @@ for filename_genome in os.listdir(path):
 		os.system(command)
 
 
-os.makedirs( "graphs")
-#run isosegmenter on all chromosomes 
-os.makedirs( "isochores")
-for filename in os.listdir('chromosomes/'):
-	print("-Running isoSegmenter on " + str(filename) )	
-	command = r'./isoSegmenter/scripts/isoSegmenter.py ' + ' -i chromosomes/'+str(filename) + ' --y_min 1 --y_max 100 -g graphs/'+str(filename)+'.jpg' + ' --window_size ' + str(args.window_size) + ' -o isochores/'+str(filename)+'.csv'	
-	os.system(command)
-
-
