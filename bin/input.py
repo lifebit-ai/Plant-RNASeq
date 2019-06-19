@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import os
 import sys
 import random
@@ -52,7 +54,7 @@ for filename in os.listdir(path):
 		print( "-Error: Genome fasta filename must end in .fa")
 		exit()
 
-split genome into chromosomes and store in folder chromosomes
+# split genome into chromosomes and store in folder chromosomes
 os.makedirs( "chromosomes")
 print("-Splitting genome into chromosomes")
 for filename in os.listdir(path):
